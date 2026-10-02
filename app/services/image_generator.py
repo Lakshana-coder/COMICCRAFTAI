@@ -65,37 +65,42 @@ IMPORTANT:
         raise RuntimeError("PIXAZO_API_KEY is not set.")
 
     try:
-        url = "https://gateway.pixazo.ai/flux/text-to-image"
+    url = "https://gateway.pixazo.ai/flux-1-schnell/v1/generateRequest"
 
-        response = requests.post(
-            url,
-            headers={
-                "Content-Type": "application/json",
-                "Ocp-Apim-Subscription-Key": api_key,
-            },
-            json={
-                "prompt": prompt,
-            },
-            timeout=180,
-        )
+    response = requests.post(
+        url,
+        headers={
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+            "Ocp-Apim-Subscription-Key": api_key,
+        },
+        json={
+            "prompt": prompt,
+        },
+        timeout=60,
+    )
 
-        response.raise_for_status()
+    response.raise_for_status()
 
-        result = response.json()
+    result = response.json()
 
-        image_url = result.get("output") or result.get("image_url")
+image_url = result.get("output")
 
-        if not image_url:
-            raise RuntimeError(f"Pixazo returned no image URL: {result}")
+if not image_url:
+    raise RuntimeError(
+        f"Pixazo returned no image URL: {result}"
+    )
 
-        image_response = requests.get(
-            image_url,
-            timeout=60,
-        )
+image_response = requests.get(
+    image_url,
+    timeout=60,
+)
 
-        image_response.raise_for_status()
+image_response.raise_for_status()
 
-        image = Image.open(BytesIO(image_response.content)).convert("RGB")
+image = Image.open(
+    BytesIO(image_response.content)
+).convert("RGB")
 
     except Exception as exc:
         raise RuntimeError(
