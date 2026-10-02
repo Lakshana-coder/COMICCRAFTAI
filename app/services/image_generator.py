@@ -1,6 +1,7 @@
 from pathlib import Path
-import re
 import os
+import re
+import time
 import requests
 from io import BytesIO
 from PIL import Image
@@ -20,7 +21,7 @@ def generate_image(
     art_style="comic book",
 ):
     """
-    Generate one AI comic panel using Pixazo Flux Schnell.
+    Generate one AI comic panel using Pixazo FLUX 1 Schnell.
     """
 
     if not image_prompt:
@@ -65,49 +66,122 @@ IMPORTANT:
         raise RuntimeError("PIXAZO_API_KEY is not set.")
 
     try:
-    url = "https://gateway.pixazo.ai/flux-1-schnell/v1/generateRequest"
+        # Pixazo FLUX 1 Schnell generation endpoint
+        url = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData"
 
-    response = requests.post(
-        url,
-        headers={
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-            "Ocp-Apim-Subscription-Key": api_key,
-        },
-        json={
-            "prompt": prompt,
-        },
-        timeout=60,
-    )
+        response = requests.post(
+            url,
+            headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache",
+                "Ocp-Apim-Subscription-Key": api_key,
+            },
+            json={
+                "prompt": prompt,
+                "num_steps": 4,
+                "seed": 15,
+                "height": 512,
+                "width": 512,
+            },
+            timeout=180,
+        )
 
-    response.raise_for_status()
+        response.raise_for_status()
 
-    result = response.json()
+        result = response.json()
 
-image_url = result.get("output")
+        print("PIXAZO RESPONSE:", result)
 
-if not image_url:
-    raise RuntimeError(
-        f"Pixazo returned no image URL: {result}"
-    )
+        request_id = result.get("requestId")
 
-image_response = requests.get(
-    image_url,
-    timeout=60,
-)
+        if not request_id:
+            raise RuntimeError(
+                f"Pixazo did not return requestId: {result}"
+            )
 
-image_response.raise_for_status()
+        # Wait for image generation to complete
+        image_url = None
 
-image = Image.open(
-    BytesIO(image_response.content)
-).convert("RGB")
+        status_url = (
+            "https://gateway.pixazo.ai/"
+            "flux-1-schnell/v1/checkStatus"
+        )
+
+        for attempt in range(36):
+            print(
+                f"Checking Pixazo status "
+                f"({attempt + 1}/36)..."
+            )
+
+            time.sleep(5)
+
+            status_response = requests.post(
+                status_url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Cache-Control": "no-cache",
+                    "Ocp-Apim-Subscription-Key": api_key,
+                },
+                json={
+                    "requestId": request_id
+                },
+                timeout=60,
+            )
+
+            status_response.raise_for_status()
+
+            status_result = status_response.json()
+
+            print("PIXAZO STATUS:", status_result)
+
+            status = str(
+                status_result.get("status", "")
+            ).lower()
+
+            if status == "completed":
+                image_url = status_result.get("output")
+                break
+
+            if status in (
+                "failed",
+                "error",
+            ):
+                raise RuntimeError(
+                    f"Pixazo generation failed: "
+                    f"{status_result}"
+                )
+
+        if not image_url:
+            raise RuntimeError(
+                "Pixazo image generation timed out."
+            )
+
+        # Download generated image
+        image_response = requests.get(
+            image_url,
+            timeout=60,
+        )
+
+        image_response.raise_for_status()
+
+        image = Image.open(
+            BytesIO(image_response.content)
+        ).convert("RGB")
 
     except Exception as exc:
         raise RuntimeError(
             f"Pixazo image generation failed: {exc}"
         ) from exc
 
-    output_dir = Path("static") / "panels"
+    # Project root
+    project_root = (
+        Path(__file__).resolve().parents[2]
+    )
+
+    # Save generated panels
+    output_dir = (
+        project_root / "static" / "panels"
+    )
 
     output_dir.mkdir(
         parents=True,
