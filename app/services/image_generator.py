@@ -167,7 +167,7 @@ IMPORTANT:
         # -----------------------------------------------------
         # SAVE IMAGE
         # -----------------------------------------------------
-        output_dir = Path("generated_images")
+        output_dir = Path("staic")/"panels"
         output_dir.mkdir(
             parents=True,
             exist_ok=True
