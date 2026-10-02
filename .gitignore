@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# Generated images
+static/panels/*
+!static/panels/.gitkeep
+
+# Generated PDFs
+static/exports/*
+!static/exports/.gitkeep
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+# Local virtual environment
+comic_env/
+
+# Generated exports
+exports/

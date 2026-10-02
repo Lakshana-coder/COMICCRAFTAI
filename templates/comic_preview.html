@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Your Comic - ComicCraft
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/static/css/style.css"
+    >
+
+</head>
+
+
+<body>
+
+<div class="page preview-page">
+
+    <header class="preview-header">
+
+        <div>
+
+            <div class="hero-badge">
+                ✨ YOUR COMIC IS READY
+            </div>
+
+            <h1>
+                {{ character_name }}'s Adventure
+            </h1>
+
+            <p>
+                {{ setting }} •
+                {{ tone }} •
+                {{ art_style }}
+            </p>
+
+        </div>
+
+        <a
+            href="/"
+            class="secondary-button"
+        >
+            ← Create Another
+        </a>
+
+    </header>
+
+
+    <main class="comic-container">
+
+        {% for panel in layout %}
+
+        <article class="comic-panel">
+
+            <div class="panel-header">
+
+                <div class="panel-number">
+                    {{ panel.panel_number }}
+                </div>
+
+                <div>
+
+                    <h2>
+                        {{ panel.title }}
+                    </h2>
+
+                    <span>
+                        PANEL {{ panel.panel_number }}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="panel-image-wrapper">
+
+                <img
+                    src="{{ panel.image_path }}"
+                    alt="Comic panel {{ panel.panel_number }}"
+                    class="panel-image"
+                    loading="lazy"
+                >
+
+            </div>
+
+
+            <div class="panel-content">
+
+                {% if panel.scene_description %}
+
+                <p class="scene-description">
+                    {{ panel.scene_description }}
+                </p>
+
+                {% endif %}
+
+
+                {% if panel.caption %}
+
+                <div class="caption-box">
+
+                    <strong>
+                        CAPTION
+                    </strong>
+
+                    <p>
+                        {{ panel.caption }}
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if panel.narration %}
+
+                <div class="narration-box">
+
+                    <strong>
+                        NARRATION
+                    </strong>
+
+                    <p>
+                        {{ panel.narration }}
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if panel.dialogue %}
+
+                <div class="dialogue-section">
+
+                    <strong>
+                        DIALOGUE
+                    </strong>
+
+                    {% for line in panel.dialogue %}
+
+                    <div class="dialogue">
+
+                        <span class="speaker">
+                            {{ line.character }}
+                        </span>
+
+                        <span class="speech">
+                            "{{ line.text }}"
+                        </span>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </article>
+
+        {% endfor %}
+
+    </main>
+
+
+    <section class="download-card">
+
+        <div>
+
+            <h2>
+                Your comic is complete! 🎉
+            </h2>
+
+            <p>
+                Download your complete comic as a PDF
+                to save and share it.
+            </p>
+
+        </div>
+
+
+        <a
+            href="{{ pdf_path }}"
+            class="generate-button download-button"
+            download
+        >
+            📥 Download Comic PDF
+        </a>
+
+    </section>
+
+
+    <footer>
+        ComicCraft • AI-powered storytelling
+    </footer>
+
+</div>
+
+</body>
+
+</html>

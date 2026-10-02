@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ComicCraft - AI Comic Creator</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/css/style.css"
+    >
+</head>
+
+<body>
+
+<div class="page">
+
+    <header class="hero">
+
+        <div class="hero-badge">
+            ✨ AI COMIC CREATOR
+        </div>
+
+        <h1>
+            Comic<span>Craft</span>
+        </h1>
+
+        <p>
+            Turn your imagination into a complete
+            AI-powered comic book.
+        </p>
+
+    </header>
+
+
+    <main class="card">
+
+        {% if error %}
+        <div class="error-box">
+            <strong>Something went wrong</strong>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+
+        <form
+            action="/generate"
+            method="post"
+            id="comic-form"
+        >
+
+            <div class="section-title">
+                <span>01</span>
+                Your Story
+            </div>
+
+            <div class="form-group">
+
+                <label for="story_prompt">
+                    Story Prompt
+                </label>
+
+                <textarea
+                    id="story_prompt"
+                    name="story_prompt"
+                    rows="5"
+                    required
+                    maxlength="2000"
+                    placeholder="Example: A brave fox discovers a mysterious glowing tree in an enchanted forest..."
+                >{{ form_data.story_prompt if form_data else "" }}</textarea>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label for="character_name">
+                        Main Character
+                    </label>
+
+                    <input
+                        type="text"
+                        id="character_name"
+                        name="character_name"
+                        required
+                        maxlength="100"
+                        placeholder="Finn"
+                        value="{{ form_data.character_name if form_data else '' }}"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="setting">
+                        Setting
+                    </label>
+
+                    <select
+                        id="setting"
+                        name="setting"
+                        required
+                    >
+
+                        {% set current_setting =
+                            form_data.setting
+                            if form_data
+                            else ''
+                        %}
+
+                        <option value="">
+                            Choose a setting
+                        </option>
+
+                        <option
+                            value="Enchanted Forest"
+                            {% if current_setting == "Enchanted Forest" %}selected{% endif %}
+                        >
+                            🌲 Enchanted Forest
+                        </option>
+
+                        <option
+                            value="Space"
+                            {% if current_setting == "Space" %}selected{% endif %}
+                        >
+                            🚀 Space
+                        </option>
+
+                        <option
+                            value="Futuristic City"
+                            {% if current_setting == "Futuristic City" %}selected{% endif %}
+                        >
+                            🌆 Futuristic City
+                        </option>
+
+                        <option
+                            value="School"
+                            {% if current_setting == "School" %}selected{% endif %}
+                        >
+                            🏫 School
+                        </option>
+
+                        <option
+                            value="Fantasy Kingdom"
+                            {% if current_setting == "Fantasy Kingdom" %}selected{% endif %}
+                        >
+                            🏰 Fantasy Kingdom
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="section-title">
+                <span>02</span>
+                Creative Style
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label for="tone">
+                        Story Tone
+                    </label>
+
+                    <select
+                        id="tone"
+                        name="tone"
+                        required
+                    >
+
+                        {% set current_tone =
+                            form_data.tone
+                            if form_data
+                            else ''
+                        %}
+
+                        <option value="">
+                            Choose a tone
+                        </option>
+
+                        <option
+                            value="Light-hearted"
+                            {% if current_tone == "Light-hearted" %}selected{% endif %}
+                        >
+                            😊 Light-hearted
+                        </option>
+
+                        <option
+                            value="Funny"
+                            {% if current_tone == "Funny" %}selected{% endif %}
+                        >
+                            😂 Funny
+                        </option>
+
+                        <option
+                            value="Dramatic"
+                            {% if current_tone == "Dramatic" %}selected{% endif %}
+                        >
+                            🎭 Dramatic
+                        </option>
+
+                        <option
+                            value="Adventurous"
+                            {% if current_tone == "Adventurous" %}selected{% endif %}
+                        >
+                            ⚔️ Adventurous
+                        </option>
+
+                        <option
+                            value="Poetic"
+                            {% if current_tone == "Poetic" %}selected{% endif %}
+                        >
+                            🌙 Poetic
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="art_style">
+                        Art Style
+                    </label>
+
+                    <select
+                        id="art_style"
+                        name="art_style"
+                        required
+                    >
+
+                        {% set current_style =
+                            form_data.art_style
+                            if form_data
+                            else ''
+                        %}
+
+                        <option value="">
+                            Choose an art style
+                        </option>
+
+                        <option
+                            value="Comic Book"
+                            {% if current_style == "Comic Book" %}selected{% endif %}
+                        >
+                            💥 Comic Book
+                        </option>
+
+                        <option
+                            value="Anime"
+                            {% if current_style == "Anime" %}selected{% endif %}
+                        >
+                            🌸 Anime
+                        </option>
+
+                        <option
+                            value="Realistic"
+                            {% if current_style == "Realistic" %}selected{% endif %}
+                        >
+                            📷 Realistic
+                        </option>
+
+                        <option
+                            value="Pixel Art"
+                            {% if current_style == "Pixel Art" %}selected{% endif %}
+                        >
+                            👾 Pixel Art
+                        </option>
+
+                        <option
+                            value="Watercolor"
+                            {% if current_style == "Watercolor" %}selected{% endif %}
+                        >
+                            🎨 Watercolor
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="generate-button"
+                id="generate-button"
+            >
+
+                <span>
+                    ✨ Generate My Comic
+                </span>
+
+                <span class="arrow">
+                    →
+                </span>
+
+            </button>
+
+            <p class="form-note">
+                AI will create 5 connected comic panels
+                with story, dialogue and illustrations.
+            </p>
+
+        </form>
+
+    </main>
+
+
+    <footer>
+        ComicCraft • AI-powered storytelling
+    </footer>
+
+</div>
+
+
+<script src="/static/js/app.js"></script>
+
+</body>
+</html>
