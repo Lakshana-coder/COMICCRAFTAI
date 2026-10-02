@@ -1,7 +1,6 @@
 from pathlib import Path
 import os
 import re
-import time
 import requests
 from io import BytesIO
 from PIL import Image
@@ -21,7 +20,7 @@ def generate_image(
     art_style="comic book",
 ):
     """
-    Generate one AI comic panel using Pixazo FLUX 1 Schnell.
+    Generate one AI comic panel using Pollinations AI.
     """
 
     if not image_prompt:
@@ -49,160 +48,100 @@ IMPORTANT:
 - Show the correct environment.
 - Include important objects mentioned in the panel.
 - Make the character's pose match the action.
-- Make the scene cinematic and visually clear.
 - Do not replace the described scene with a generic scene.
 - Do not add unrelated objects or characters.
 - Do not put text, captions, speech bubbles, or narration inside the generated artwork.
 - Generate artwork only.
 """
 
-    print("\nGENERATING PIXAZO COMIC PANEL...")
+    print("\nGENERATING POLLINATIONS COMIC PANEL...")
     print("PANEL:", panel_number)
     print("PROMPT:", image_prompt)
 
-    api_key = os.getenv("PIXAZO_API_KEY")
+    # Pollinations API key
+    api_key = os.getenv("POLLINATIONS_API_KEY")
 
     if not api_key:
-        raise RuntimeError("PIXAZO_API_KEY is not set.")
+        raise RuntimeError(
+            "POLLINATIONS_API_KEY is not set."
+        )
 
     try:
-        # Pixazo FLUX 1 Schnell generation endpoint
-        url = "https://gateway.pixazo.ai/flux-1-schnell/v1/getData"
+        # Pollinations image generation endpoint
+        url = "https://gen.pollinations.ai/image/" + requests.utils.quote(
+            prompt,
+            safe=""
+        )
 
-        response = requests.post(
+        params = {
+            "model": "flux",
+            "width": 1024,
+            "height": 1024,
+            "seed": panel_number,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        response = requests.get(
             url,
-            headers={
-                "Content-Type": "application/json",
-                "Cache-Control": "no-cache",
-                "Ocp-Apim-Subscription-Key": api_key,
-            },
-            json={
-                "prompt": prompt,
-                "num_steps": 4,
-                "seed": 15,
-                "height": 512,
-                "width": 512,
-            },
+            params=params,
+            headers=headers,
             timeout=180,
         )
 
         response.raise_for_status()
 
-        result = response.json()
+        # Make sure we actually received image data
+        content_type = response.headers.get("content-type", "")
 
-        print("PIXAZO RESPONSE:", result)
-
-        request_id = result.get("requestId")
-
-        if not request_id:
+        if not content_type.startswith("image/"):
             raise RuntimeError(
-                f"Pixazo did not return requestId: {result}"
+                f"Pollinations returned unexpected content type: "
+                f"{content_type}\n{response.text[:500]}"
             )
 
-        # Wait for image generation to complete
-        image_url = None
+        # Save generated image
+        output_dir = Path("generated_images")
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        status_url = (
-            "https://gateway.pixazo.ai/"
-            "flux-1-schnell/v1/checkStatus"
+        filename = (
+            f"{safe_filename(character_name or 'comic')}"
+            f"_panel_{panel_number}.png"
         )
 
-        for attempt in range(36):
-            print(
-                f"Checking Pixazo status "
-                f"({attempt + 1}/36)..."
-            )
+        output_path = output_dir / filename
 
-            time.sleep(5)
+        image = Image.open(BytesIO(response.content))
+        image.save(output_path, format="PNG")
 
-            status_response = requests.post(
-                status_url,
-                headers={
-                    "Content-Type": "application/json",
-                    "Cache-Control": "no-cache",
-                    "Ocp-Apim-Subscription-Key": api_key,
-                },
-                json={
-                    "requestId": request_id
-                },
-                timeout=60,
-            )
+        print("IMAGE GENERATED SUCCESSFULLY")
+        print("SAVED TO:", output_path)
 
-            status_response.raise_for_status()
+        return str(output_path)
 
-            status_result = status_response.json()
+    except requests.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response else "unknown"
 
-            print("PIXAZO STATUS:", status_result)
+        error_text = ""
+        if e.response is not None:
+            try:
+                error_text = e.response.text[:1000]
+            except Exception:
+                pass
 
-            status = str(
-                status_result.get("status", "")
-            ).lower()
-
-            if status == "completed":
-                image_url = status_result.get("output")
-                break
-
-            if status in (
-                "failed",
-                "error",
-            ):
-                raise RuntimeError(
-                    f"Pixazo generation failed: "
-                    f"{status_result}"
-                )
-
-        if not image_url:
-            raise RuntimeError(
-                "Pixazo image generation timed out."
-            )
-
-        # Download generated image
-        image_response = requests.get(
-            image_url,
-            timeout=60,
-        )
-
-        image_response.raise_for_status()
-
-        image = Image.open(
-            BytesIO(image_response.content)
-        ).convert("RGB")
-
-    except Exception as exc:
         raise RuntimeError(
-            f"Pixazo image generation failed: {exc}"
-        ) from exc
+            f"Pollinations image generation failed: "
+            f"HTTP {status}: {error_text}"
+        )
 
-    # Project root
-    project_root = (
-        Path(__file__).resolve().parents[2]
-    )
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(
+            f"Pollinations request failed: {e}"
+        )
 
-    # Save generated panels
-    output_dir = (
-        project_root / "static" / "panels"
-    )
-
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    filename = (
-        f"{safe_filename(character_name)}"
-        f"_panel_{panel_number}.png"
-    )
-
-    output_path = output_dir / filename
-
-    image.save(
-        output_path,
-        format="PNG",
-    )
-
-    print(
-        "AI COMIC PANEL SAVED:",
-        output_path,
-    )
-
-    return f"/static/panels/{filename}"
+    except Exception as e:
+        raise RuntimeError(
+            f"Image generation failed: {e}"
+        )
