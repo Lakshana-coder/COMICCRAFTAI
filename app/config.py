@@ -27,7 +27,7 @@ class Settings:
 
     GEMINI_PRO_MODEL = os.getenv(
         "GEMINI_PRO_MODEL",
-        "gemini-2.5-pro"
+        "gemini-3.1-pro-preview"
     )
 
     # Hugging Face
