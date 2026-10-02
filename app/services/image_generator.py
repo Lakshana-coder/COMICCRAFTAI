@@ -5,8 +5,6 @@ import requests
 from io import BytesIO
 from PIL import Image
 
-from app.config import settings
-
 
 def safe_filename(text):
     text = text or "comic"
@@ -25,13 +23,11 @@ def generate_image(
     art_style="comic book",
 ):
     """
-    Generate an AI comic panel using AI Horde.
-    No Hugging Face or Pollinations API key is required.
+    Generate one AI comic panel using AI Horde.
     """
 
-    # Build a detailed prompt so the generated picture matches the story.
     prompt = f"""
-Create a single detailed comic-book panel.
+Create a single high-quality comic-book illustration.
 
 SCENE:
 {image_prompt}
@@ -43,50 +39,55 @@ SETTING:
 {setting or "the environment described in the scene"}
 
 ART STYLE:
-{art_style or "modern colorful comic book illustration"}
+{art_style or "colorful modern comic book illustration"}
 
 IMPORTANT:
-Show the actual action happening in this scene.
-Keep the character visually consistent.
-Show the correct environment and important objects.
-Clear composition, expressive characters, cinematic lighting.
-Do not add unrelated objects.
-Do not add text, captions, speech bubbles, or narration.
-High quality AI comic illustration.
+- Show the actual action happening in this scene.
+- Keep the main character visually consistent.
+- Show the correct environment.
+- Use clear composition.
+- Use expressive characters.
+- Use cinematic lighting.
+- Do not add unrelated objects.
+- Do not add text.
+- Do not add captions.
+- Do not add speech bubbles.
+- Create a polished story illustration.
 """
 
-    print("\nGENERATING AI HORDE COMIC PANEL...")
+    print("\n==============================")
+    print("GENERATING AI HORDE PANEL")
     print("PANEL:", panel_number)
-    print("PROMPT:", prompt)
+    print("==============================")
 
-    # AI Horde provides an anonymous API key.
-    # Registered users can later replace this with their own key.
     horde_key = os.getenv("AI_HORDE_API_KEY", "0000000000")
 
+    headers = {
+        "apikey": horde_key,
+        "Client-Agent": "ComicCraftAI:1.0",
+        "Content-Type": "application/json",
+    }
+
     try:
-        # Submit generation request.
+        # ---------------------------------------
+        # 1. SUBMIT GENERATION
+        # ---------------------------------------
         response = requests.post(
             "https://aihorde.net/api/v2/generate/async",
-            headers={
-                "apikey": horde_key,
-                "Client-Agent": "ComicCraftAI:1.0",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json={
                 "prompt": prompt,
                 "params": {
-                    "width": 768,
-                    "height": 768,
-                    "steps": 25,
-                    "cfg_scale": 7.5,
+                    "width": 512,
+                    "height": 512,
+                    "steps": 20,
+                    "cfg_scale": 7.0,
                     "n": 1,
                 },
-                "models": [
-                    "SDXL 1.0"
-                ],
                 "nsfw": False,
+                "censor_nsfw": True,
             },
-            timeout=60,
+            timeout=30,
         )
 
         response.raise_for_status()
@@ -96,47 +97,57 @@ High quality AI comic illustration.
 
         if not request_id:
             raise RuntimeError(
-                "AI Horde did not return a generation request ID."
+                f"AI Horde did not return a request ID: {generation}"
             )
 
-        print("AI Horde request:", request_id)
+        print("AI Horde request ID:", request_id)
 
-        # Wait for the volunteer worker to finish.
-        for attempt in range(60):
+        # ---------------------------------------
+        # 2. WAIT FOR GENERATION
+        # ---------------------------------------
+        max_attempts = 120
+
+        for attempt in range(max_attempts):
+
             time.sleep(5)
 
-            status_response = requests.get(
+            check_response = requests.get(
                 f"https://aihorde.net/api/v2/generate/check/{request_id}",
-                headers={
-                    "apikey": horde_key,
-                    "Client-Agent": "ComicCraftAI:1.0",
-                },
+                headers=headers,
                 timeout=30,
             )
 
-            status_response.raise_for_status()
-            status = status_response.json()
+            check_response.raise_for_status()
+            status = check_response.json()
+
+            finished = status.get("finished", 0)
+            processing = status.get("processing", 0)
+            waiting = status.get("waiting", 0)
 
             print(
-                f"Waiting for image... "
-                f"{attempt + 1}/60"
+                f"AI Horde panel {panel_number}: "
+                f"{attempt + 1}/{max_attempts} | "
+                f"finished={finished} "
+                f"processing={processing} "
+                f"waiting={waiting}"
             )
 
-            if status.get("done"):
+            if status.get("done") or finished >= 1:
+                print("Generation completed.")
                 break
 
         else:
             raise RuntimeError(
-                "AI Horde image generation timed out."
+                "AI Horde is taking too long. "
+                "The request is still queued."
             )
 
-        # Retrieve completed generation.
+        # ---------------------------------------
+        # 3. GET COMPLETED IMAGE
+        # ---------------------------------------
         result_response = requests.get(
             f"https://aihorde.net/api/v2/generate/status/{request_id}",
-            headers={
-                "apikey": horde_key,
-                "Client-Agent": "ComicCraftAI:1.0",
-            },
+            headers=headers,
             timeout=60,
         )
 
@@ -147,30 +158,42 @@ High quality AI comic illustration.
 
         if not generations:
             raise RuntimeError(
-                "AI Horde finished but returned no image."
+                f"AI Horde finished but returned no image: {result}"
             )
 
-        image_url = generations[0].get("img")
+        image_data = generations[0].get("img")
 
-        if not image_url:
+        if not image_data:
             raise RuntimeError(
-                "AI Horde returned no image URL."
+                "AI Horde returned an empty image."
             )
 
-        # Download the generated image.
-        image_response = requests.get(
-            image_url,
-            timeout=120,
-        )
+        # ---------------------------------------
+        # 4. DOWNLOAD IMAGE
+        # ---------------------------------------
+        if image_data.startswith("http"):
 
-        image_response.raise_for_status()
+            image_response = requests.get(
+                image_data,
+                timeout=120,
+            )
 
-        image = Image.open(
-            BytesIO(image_response.content)
-        )
+            image_response.raise_for_status()
 
-        # Save to the same location expected by ComicCraft.
+            image = Image.open(
+                BytesIO(image_response.content)
+            )
+
+        else:
+            raise RuntimeError(
+                "AI Horde returned an unsupported image format."
+            )
+
+        # ---------------------------------------
+        # 5. SAVE IMAGE
+        # ---------------------------------------
         output_dir = Path("static") / "panels"
+
         output_dir.mkdir(
             parents=True,
             exist_ok=True,
@@ -188,14 +211,14 @@ High quality AI comic illustration.
             format="PNG",
         )
 
-        print(
-            "IMAGE SAVED:",
-            output_path
-        )
+        print("IMAGE SAVED:", output_path)
 
         return str(output_path)
 
     except Exception as exc:
+
+        print("AI HORDE ERROR:", exc)
+
         raise RuntimeError(
             f"AI image generation failed: {exc}"
         ) from exc
