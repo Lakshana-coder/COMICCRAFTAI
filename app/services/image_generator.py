@@ -58,31 +58,45 @@ IMPORTANT:
     print("PANEL:", panel_number)
     print("PROMPT:", image_prompt)
 
-    # Pollinations API key
+    # ---------------------------------------------------------
+    # GET POLLINATIONS API KEY
+    # ---------------------------------------------------------
     api_key = os.getenv("POLLINATIONS_API_KEY")
 
     if not api_key:
         raise RuntimeError(
-            "POLLINATIONS_API_KEY is not set."
+            "POLLINATIONS_API_KEY is not configured on the server."
         )
+
+    api_key = api_key.strip()
+
+    if not api_key:
+        raise RuntimeError(
+            "POLLINATIONS_API_KEY is empty."
+        )
+
+    # ---------------------------------------------------------
+    # POLLINATIONS IMAGE API
+    # ---------------------------------------------------------
+    url = (
+        "https://gen.pollinations.ai/image/"
+        + requests.utils.quote(prompt, safe="")
+    )
+
+    params = {
+        "model": "flux",
+        "width": 1024,
+        "height": 1024,
+        "seed": panel_number,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "image/*",
+    }
 
     try:
-        # Pollinations image generation endpoint
-        url = "https://gen.pollinations.ai/image/" + requests.utils.quote(
-            prompt,
-            safe=""
-        )
-
-        params = {
-            "model": "flux",
-            "width": 1024,
-            "height": 1024,
-            "seed": panel_number,
-        }
-
-        headers = {
-            "Authorization": f"Bearer {api_key}"
-        }
+        print("Calling Pollinations...")
 
         response = requests.get(
             url,
@@ -91,20 +105,73 @@ IMPORTANT:
             timeout=180,
         )
 
-        response.raise_for_status()
+        print("Pollinations HTTP status:", response.status_code)
 
-        # Make sure we actually received image data
-        content_type = response.headers.get("content-type", "")
-
-        if not content_type.startswith("image/"):
+        # -----------------------------------------------------
+        # HANDLE AUTHORIZATION ERROR
+        # -----------------------------------------------------
+        if response.status_code == 401:
             raise RuntimeError(
-                f"Pollinations returned unexpected content type: "
-                f"{content_type}\n{response.text[:500]}"
+                "Pollinations rejected the API key (401 Unauthorized). "
+                "Check the POLLINATIONS_API_KEY environment variable "
+                "on Render and make sure it contains the current key."
             )
 
-        # Save generated image
+        # -----------------------------------------------------
+        # HANDLE FORBIDDEN
+        # -----------------------------------------------------
+        if response.status_code == 403:
+            raise RuntimeError(
+                "Pollinations rejected the request (403 Forbidden). "
+                "Check that the Pollinations API key is active and "
+                "has permission to generate images."
+            )
+
+        # -----------------------------------------------------
+        # OTHER HTTP ERRORS
+        # -----------------------------------------------------
+        if not response.ok:
+            try:
+                error_text = response.text[:1500]
+            except Exception:
+                error_text = "Unable to read error response."
+
+            raise RuntimeError(
+                f"Pollinations image generation failed: "
+                f"HTTP {response.status_code}: {error_text}"
+            )
+
+        # -----------------------------------------------------
+        # CHECK RESPONSE TYPE
+        # -----------------------------------------------------
+        content_type = (
+            response.headers.get("content-type", "")
+            .lower()
+            .strip()
+        )
+
+        print("Pollinations content type:", content_type)
+
+        if not content_type.startswith("image/"):
+            try:
+                body = response.text[:1500]
+            except Exception:
+                body = "Unable to read response."
+
+            raise RuntimeError(
+                "Pollinations did not return an image.\n"
+                f"Content-Type: {content_type}\n"
+                f"Response: {body}"
+            )
+
+        # -----------------------------------------------------
+        # SAVE IMAGE
+        # -----------------------------------------------------
         output_dir = Path("generated_images")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         filename = (
             f"{safe_filename(character_name or 'comic')}"
@@ -113,33 +180,42 @@ IMPORTANT:
 
         output_path = output_dir / filename
 
-        image = Image.open(BytesIO(response.content))
-        image.save(output_path, format="PNG")
+        image = Image.open(
+            BytesIO(response.content)
+        )
+
+        # Convert to RGB/RGBA if necessary
+        if image.mode not in ("RGB", "RGBA"):
+            image = image.convert("RGB")
+
+        image.save(
+            output_path,
+            format="PNG"
+        )
 
         print("IMAGE GENERATED SUCCESSFULLY")
         print("SAVED TO:", output_path)
 
         return str(output_path)
 
-    except requests.exceptions.HTTPError as e:
-        status = e.response.status_code if e.response else "unknown"
-
-        error_text = ""
-        if e.response is not None:
-            try:
-                error_text = e.response.text[:1000]
-            except Exception:
-                pass
-
+    except requests.exceptions.Timeout:
         raise RuntimeError(
-            f"Pollinations image generation failed: "
-            f"HTTP {status}: {error_text}"
+            "Pollinations request timed out. "
+            "Please try generating the comic again."
+        )
+
+    except requests.exceptions.ConnectionError as e:
+        raise RuntimeError(
+            f"Could not connect to Pollinations: {e}"
         )
 
     except requests.exceptions.RequestException as e:
         raise RuntimeError(
             f"Pollinations request failed: {e}"
         )
+
+    except RuntimeError:
+        raise
 
     except Exception as e:
         raise RuntimeError(
