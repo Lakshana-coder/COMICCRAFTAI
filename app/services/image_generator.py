@@ -1,7 +1,10 @@
 from pathlib import Path
 import re
 
-from huggingface_hub import InferenceClient
+import os
+import requests
+from io import BytesIO
+from PIL import Image
 
 from app.config import settings
 
@@ -13,16 +16,14 @@ def safe_filename(text):
 
 
 def get_client():
-    if not settings.HF_TOKEN:
+    api_key = os.getenv("POLLINATIONS_API_KEY")
+
+    if not api_key:
         raise RuntimeError(
-            "HF_TOKEN is missing. "
-            "Add it to your .env file."
+            "POLLINATIONS_API_KEY is missing."
         )
 
-    return InferenceClient(
-        provider="auto",
-        api_key=settings.HF_TOKEN,
-    )
+    return api_key
 
 
 def generate_image(
@@ -69,27 +70,46 @@ IMPORTANT:
 - Generate artwork only.
 """
 
-    print("\nGENERATING HUGGING FACE COMIC PANEL...")
-    print("PANEL:", panel_number)
-    print("PROMPT:", image_prompt)
+    print("\nGENERATING POLLINATIONS COMIC PANEL...")
+print("PANEL:", panel_number)
+print("PROMPT:", image_prompt)
 
-    client = get_client()
+pollinations_key = os.getenv("POLLINATIONS_API_KEY")
 
-    try:
-        image = client.text_to_image(
-            prompt,
-            model="black-forest-labs/FLUX.1-schnell",
-        )
+if not pollinations_key:
+    raise RuntimeError("POLLINATIONS_API_KEY is not set.")
 
-    except Exception as exc:
-        raise RuntimeError(
-            f"Hugging Face image generation failed: {exc}"
-        ) from exc
+try:
+    import requests
+    from urllib.parse import quote
 
-    if image is None:
-        raise RuntimeError(
-            "Hugging Face did not return an image."
-        )
+    encoded_prompt = quote(image_prompt)
+
+    url = (
+        f"https://gen.pollinations.ai/image/{encoded_prompt}"
+        f"?model=flux"
+    )
+
+    response = requests.get(
+        url,
+        headers={
+            "Authorization": f"Bearer {pollinations_key}"
+        },
+        timeout=120
+    )
+
+    response.raise_for_status()
+    image = response.content
+
+except Exception as exc:
+    raise RuntimeError(
+        f"Pollinations image generation failed: {exc}"
+    ) from exc
+
+if not image:
+    raise RuntimeError(
+        "Pollinations did not return an image."
+    )
 
     output_dir = Path("static") / "panels"
 
