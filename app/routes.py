@@ -79,7 +79,7 @@ def generate_complete_comic(
     pdf_path = save_pdf(
     layout=layout,
     title=request_data.character_name,
-)
+    )
 
 # Convert filesystem image paths to browser URLs
     for panel in layout:
@@ -88,11 +88,9 @@ def generate_complete_comic(
             panel["image_path"] = "/static/panels/" + Path(image_path).name
 
     return layout, pdf_path
-
-
-    @router.get(
-    "/",
-    response_class=HTMLResponse,
+@router.get(
+"/",
+response_class=HTMLResponse,
 )
 async def home(request: Request):
     return request.app.state.templates.TemplateResponse(
