@@ -87,7 +87,7 @@ for panel in layout:
     if image_path:
         panel["image_path"] = "/static/panels/" + Path(image_path).name
 
-return layout, pdf_path
+    return layout, pdf_path
 
 
 @router.get(
