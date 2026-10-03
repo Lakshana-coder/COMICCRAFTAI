@@ -168,14 +168,14 @@ IMPORTANT:
         # -----------------------------------------------------
         # SAVE IMAGE
         # -----------------------------------------------------
-        output_dir = Path("staic")/"panels"
+        output_dir = settings.PANEL_DIR
         output_dir.mkdir(
             parents=True,
             exist_ok=True
         )
 
         filename = (
-            f"{safe_filename(character_name or 'comic')}"
+            f"{safe(character_name or 'comic')}"
             f"_panel_{panel_number}.png"
         )
 
