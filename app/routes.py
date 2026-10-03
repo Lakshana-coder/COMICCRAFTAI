@@ -1,5 +1,5 @@
 from typing import Any
-from pathlib import path
+from pathlib import Path
 
 from fastapi import (
     APIRouter,
