@@ -175,7 +175,7 @@ IMPORTANT:
         )
 
         filename = (
-            f"{safe(character_name or 'comic')}"
+            f"{safe_filename(character_name or 'comic')}"
             f"_panel_{panel_number}.png"
         )
 
