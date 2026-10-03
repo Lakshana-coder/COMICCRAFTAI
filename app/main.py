@@ -24,8 +24,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-
 app.mount(
     "/static",
     StaticFiles(
