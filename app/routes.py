@@ -1,4 +1,5 @@
 from typing import Any
+from pathlib import path
 
 from fastapi import (
     APIRouter,
@@ -76,11 +77,17 @@ def generate_complete_comic(
     )
 
     pdf_path = save_pdf(
-        layout=layout,
-        title=request_data.character_name,
-    )
+    layout=layout,
+    title=request_data.character_name,
+)
 
-    return layout, pdf_path
+# Convert filesystem image paths to browser URLs
+for panel in layout:
+    image_path = panel.get("image_path", "")
+    if image_path:
+        panel["image_path"] = "/static/panels/" + Path(image_path).name
+
+return layout, pdf_path
 
 
 @router.get(
