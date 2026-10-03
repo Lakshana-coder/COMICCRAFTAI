@@ -82,15 +82,15 @@ def generate_complete_comic(
 )
 
 # Convert filesystem image paths to browser URLs
-for panel in layout:
-    image_path = panel.get("image_path", "")
-    if image_path:
-        panel["image_path"] = "/static/panels/" + Path(image_path).name
+    for panel in layout:
+        image_path = panel.get("image_path", "")
+        if image_path:
+            panel["image_path"] = "/static/panels/" + Path(image_path).name
 
     return layout, pdf_path
 
 
-@router.get(
+    @router.get(
     "/",
     response_class=HTMLResponse,
 )
